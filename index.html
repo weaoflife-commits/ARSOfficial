@@ -1,0 +1,3389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PyOS - Python Operating System</title>
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        :root {
+            --primary-bg: #1e1e1e;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #0078d7;
+            --text-color: #ffffff;
+            --border-color: #3d3d3d;
+            --terminal-bg: #1e1e1e;
+            --terminal-text: #d4d4d4;
+            --success-color: #4ec9b0;
+            --error-color: #f48771;
+            --warning-color: #dcdcaa;
+            --info-color: #9cdcfe;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Ubuntu, sans-serif;
+        }
+        
+        /* Custom scrollbar for better mobile experience */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 100, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(150, 150, 150, 0.7);
+        }
+        
+        /* Scroll to top button */
+        #scroll-to-top {
+            transition: all 0.3s ease;
+        }
+        
+        #scroll-to-top:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(0, 120, 215, 0.4);
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+            padding-bottom: 50px; /* Space for taskbar */
+        }
+
+        /* Desktop */
+        .desktop {
+            width: 100%;
+            min-height: calc(100vh - 40px);
+            min-height: calc(var(--viewport-height, 100vh) - 40px);
+            position: relative;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%231a1a2e"/><circle cx="20" cy="20" r="2" fill="%2316213e" opacity="0.5"/><circle cx="50" cy="50" r="1" fill="%230f3460" opacity="0.5"/><circle cx="80" cy="80" r="1.5" fill="%2316213e" opacity="0.5"/></svg>');
+            background-size: cover;
+            overflow: visible;
+        }
+
+        /* Taskbar */
+        .taskbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-top: 1px solid var(--border-color);
+            z-index: 1000;
+            touch-action: manipulation; /* Ensure touch events work on mobile */
+        }
+
+        .taskbar-center {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .taskbar-icon {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+        }
+
+        .taskbar-icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.1);
+        }
+
+        .taskbar-icon.active {
+            background: var(--accent-color);
+            box-shadow: 0 0 8px rgba(0, 120, 215, 0.6);
+        }
+
+        .taskbar-icon i {
+            font-size: 16px;
+        }
+        
+        /* NEW: Styling for fullscreen button */
+        #page-fullscreen-btn {
+            background: rgba(78, 201, 176, 0.2);
+        }
+        
+        #page-fullscreen-btn:hover {
+            background: rgba(78, 201, 176, 0.4);
+        }
+        
+        /* Improve touch targets for mobile */
+        @media (max-width: 768px) {
+            .taskbar-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+            
+            .taskbar-center {
+                gap: 15px;
+            }
+        }
+
+        /* Windows */
+        .window {
+            position: absolute;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+            min-height: 200px;
+        }
+
+        .window-header {
+            height: 30px;
+            background: rgba(45, 45, 45, 0.5);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: move;
+        }
+
+        .window-title {
+            font-size: 12px;
+            flex-grow: 1;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .window-btn {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .minimize { background: #ffbd44; }
+        .maximize { background: #00d744; }
+        .fullscreen { background: #4ec9b0; width: 18px; height: 18px; }
+        .close { background: #ff5f56; }
+        
+        .window-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+        }
+        
+        .fullscreen::after {
+            content: '⛶';
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 14px;
+            color: white;
+        }
+        
+        .fullscreen-mode .fullscreen::after {
+            content: '⛶';
+        }
+        
+        .window.minimized {
+            height: 30px !important;
+        }
+        
+        .window.maximized {
+            border-radius: 0 !important;
+        }
+        
+        .window.fullscreen-mode {
+            position: fixed !important;
+            margin: 0 !important;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7) !important;
+            backdrop-filter: blur(0) !important;
+        }
+
+        .window-content {
+            flex-grow: 1;
+            padding: 10px;
+            overflow: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+            overscroll-behavior: contain; /* Prevent scroll chaining */
+        }
+
+        /* Start Menu */
+        .start-menu {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 500px;
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 999;
+        }
+
+        .start-menu-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .start-menu-title {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        .start-menu-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .start-menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .start-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .start-menu-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--accent-color);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .start-menu-item span {
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            padding: 10px;
+            height: 100%;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+            overscroll-behavior: contain; /* Prevent scroll chaining */
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .terminal-prompt {
+            color: var(--success-color);
+            display: inline-block;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-text);
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            outline: none;
+            width: calc(100% - 20px);
+        }
+
+        .terminal-output {
+            white-space: pre-wrap;
+        }
+
+        /* Editor */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            gap: 10px;
+            padding: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .editor-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .editor-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .editor-textarea {
+            flex-grow: 1;
+            background: rgba(20, 20, 20, 0.5);
+            color: var(--terminal-text);
+            border: none;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+            overscroll-behavior: contain; /* Prevent scroll chaining */
+        }
+
+        /* Dropdown Styles - FIX FOR VISIBILITY */
+        select {
+            background: var(--secondary-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--secondary-bg);
+            color: var(--text-color);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* File Explorer */
+        .file-explorer {
+            display: flex;
+            height: 100%;
+        }
+
+        .sidebar {
+            width: 200px;
+            border-right: 1px solid var(--border-color);
+            padding: 10px;
+        }
+
+        .sidebar-item {
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .file-content {
+            flex-grow: 1;
+            padding: 10px;
+            overflow: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch; /* Enable momentum scrolling on iOS */
+            overscroll-behavior: contain; /* Prevent scroll chaining */
+        }
+
+        /* Settings */
+        .settings-panel {
+            padding: 20px;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-title {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .theme-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .theme-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .theme-option.active {
+            border-color: white;
+        }
+
+        /* Utilities */
+        .hidden {
+            display: none !important;
+        }
+
+        .draggable {
+            position: absolute;
+        }
+
+        .resizable {
+            resize: both;
+            overflow: hidden;
+        }
+
+        /* Code blocks */
+        pre {
+            color: var(--terminal-text);
+        }
+        
+        /* Window animations */
+        @keyframes windowOpen {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Page fullscreen mode */
+        body.page-fullscreen {
+            overflow: hidden;
+        }
+        
+        body.page-fullscreen .desktop {
+            min-height: 100vh;
+            height: 100vh;
+        }
+        
+        body.page-fullscreen .taskbar {
+            display: none !important;
+        }
+
+        
+        @keyframes windowClose {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+        
+        @keyframes terminalEnter {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Start menu animations */
+        @keyframes startMenuOpen {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @keyframes startMenuClose {
+            0% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+        }
+        
+        .window {
+            animation: windowOpen 0.3s ease-out;
+        }
+        
+        .terminal-line {
+            animation: terminalEnter 0.2s ease-out;
+        }
+        
+        .start-menu {
+            animation: startMenuOpen 0.2s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Desktop -->
+    <div class="desktop" id="desktop">
+        <!-- Windows will be dynamically added here -->
+    </div>
+
+    <!-- Taskbar -->
+    <div class="taskbar">
+        <div class="taskbar-center">
+            <div class="taskbar-icon" id="start-btn">
+                <i>⌂</i>
+            </div>
+            <div class="taskbar-icon" id="editor-btn">
+                <i>✏️</i>
+            </div>
+            <div class="taskbar-icon" id="terminal-btn">
+                <i>💻</i>
+            </div>
+            <div class="taskbar-icon" id="files-btn">
+                <i>📁</i>
+            </div>
+            <div class="taskbar-icon" id="settings-btn">
+                <i>⚙️</i>
+            </div>
+            <!-- NEW: Page Fullscreen Button -->
+            <div class="taskbar-icon" id="page-fullscreen-btn" title="Toggle Full Page Fullscreen">
+                <i>⛶</i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Menu -->
+    <div class="start-menu" id="start-menu">
+        <div class="start-menu-header">
+            <div class="start-menu-title">PyOS</div>
+        </div>
+        <div class="start-menu-content">
+            <div class="start-menu-item" data-action="learn">
+                <div class="start-menu-icon">📘</div>
+                <span>Learn</span>
+            </div>
+            <div class="start-menu-item" data-action="practice">
+                <div class="start-menu-icon">🔬</div>
+                <span>Practice</span>
+            </div>
+            <div class="start-menu-item" data-action="terminal">
+                <div class="start-menu-icon">💻</div>
+                <span>Run Terminal</span>
+            </div>
+            <div class="start-menu-item" data-action="projects">
+                <div class="start-menu-icon">📂</div>
+                <span>Projects</span>
+            </div>
+            <div class="start-menu-item" data-action="settings">
+                <div class="start-menu-icon">⚙️</div>
+                <span>Settings</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PyOS System State
+        const PyOS = {
+            windows: [],
+            activeWindow: null,
+            fileSystem: {
+                projects: [],
+                currentPath: '/',
+                files: {}
+            },
+            settings: {
+                theme: 'dark',
+                accentColor: '#0078d7'
+            },
+            terminals: {
+                python: { type: 'python', history: [] },
+                ipython: { type: 'ipython', history: [] },
+                jupyter: { type: 'jupyter', history: [] },
+                bash: { type: 'bash', history: [] },
+                debug: { type: 'debug', history: [] }
+            }
+        };
+
+        // DOM Elements
+        const desktop = document.getElementById('desktop');
+        const startMenu = document.getElementById('start-menu');
+        const startBtn = document.getElementById('start-btn');
+
+        // Initialize PyOS
+        document.addEventListener('DOMContentLoaded', () => {
+            // Event Listeners
+            startBtn.addEventListener('click', toggleStartMenu);
+            
+            // Add event listeners for start menu items
+            document.querySelectorAll('.start-menu-item').forEach(item => {
+                item.addEventListener('click', handleStartMenuItemClick);
+            });
+            
+            // Add event listeners for taskbar icons
+            document.getElementById('editor-btn').addEventListener('click', () => createEditorWindow());
+            document.getElementById('terminal-btn').addEventListener('click', () => createTerminalWindow());
+            document.getElementById('files-btn').addEventListener('click', () => createFileExplorerWindow());
+            document.getElementById('settings-btn').addEventListener('click', () => createSettingsWindow());
+            
+            // NEW: Add event listener for page fullscreen button
+            document.getElementById('page-fullscreen-btn').addEventListener('click', togglePageFullscreen);
+            
+            // Initialize file system
+            initializeFileSystem();
+            
+            // Create initial windows
+            createWelcomeWindow();
+            
+            // Handle mobile viewport height
+            handleMobileViewport();
+            
+            // Adjust for full page scrolling
+            adjustForFullPageScrolling();
+            
+            // Enhance mobile scrolling
+            enhanceMobileScrolling();
+        });
+        
+        // Handle mobile viewport height issues
+        function handleMobileViewport() {
+            // Fix for mobile browser address bar affecting viewport height
+            let viewportHeight = window.innerHeight;
+            document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+            
+            window.addEventListener('resize', () => {
+                viewportHeight = window.innerHeight;
+                document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+                
+                // Adjust desktop height
+                const desktop = document.getElementById('desktop');
+                if (desktop) {
+                    desktop.style.minHeight = `calc(var(--viewport-height) - 40px)`;
+                }
+            });
+        }
+        
+        // Adjust content for full page scrolling
+        function adjustForFullPageScrolling() {
+            // Make sure desktop can expand beyond viewport
+            const desktop = document.getElementById('desktop');
+            if (desktop) {
+                desktop.style.minHeight = 'calc(100vh - 40px)';
+                desktop.style.height = 'auto';
+            }
+            
+            // Enable body scrolling
+            document.body.style.overflow = 'auto';
+            
+            // Add padding to bottom to ensure content is visible above taskbar
+            document.body.style.paddingBottom = '50px';
+        }
+        
+        // Initialize full page scrolling adjustments
+        document.addEventListener('DOMContentLoaded', () => {
+            adjustForFullPageScrolling();
+        });
+
+        // Toggle Start Menu
+        function toggleStartMenu() {
+            if (startMenu.style.display === 'block') {
+                // Close with animation
+                startMenu.style.animation = 'startMenuClose 0.2s ease-in forwards';
+                setTimeout(() => {
+                    startMenu.style.display = 'none';
+                    startMenu.style.animation = '';
+                }, 200);
+                startBtn.classList.remove('active');
+            } else {
+                // Open with animation
+                startMenu.style.display = 'block';
+                startMenu.style.animation = 'startMenuOpen 0.2s ease-out forwards';
+                startBtn.classList.add('active');
+            }
+        }
+
+        // Handle Start Menu Item Click
+        function handleStartMenuItemClick(e) {
+            const action = e.currentTarget.dataset.action;
+            toggleStartMenu();
+            
+            switch(action) {
+                case 'learn':
+                    createLearnWindow();
+                    break;
+                case 'practice':
+                    createPracticeWindow();
+                    break;
+                case 'terminal':
+                    createTerminalWindow();
+                    break;
+                case 'projects':
+                    createFileExplorerWindow();
+                    break;
+                case 'settings':
+                    createSettingsWindow();
+                    break;
+            }
+        }
+
+        // Create Window
+        function createWindow(title, content, width = 600, height = 400) {
+            const windowId = 'window-' + Date.now();
+            const windowElement = document.createElement('div');
+            windowElement.className = 'window draggable resizable';
+            windowElement.id = windowId;
+            windowElement.style.width = width + 'px';
+            windowElement.style.height = height + 'px';
+            windowElement.style.left = 'calc(50% - ' + (width/2) + 'px)';
+            
+            // Adjust top position to account for scrolling
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            windowElement.style.top = 'calc(50% - ' + (height/2) + 'px + ' + scrollTop + 'px)';
+            
+            windowElement.innerHTML = `
+                <div class="window-header">
+                    <div class="window-title">${title}</div>
+                    <div class="window-controls">
+                        <div class="window-btn minimize"></div>
+                        <div class="window-btn maximize"></div>
+                        <div class="window-btn fullscreen" title="Toggle Fullscreen"></div>
+                        <div class="window-btn close"></div>
+                    </div>
+                </div>
+                <div class="window-content">
+                    ${content}
+                </div>
+            `;
+            
+            desktop.appendChild(windowElement);
+            
+            // Add window controls
+            const closeBtn = windowElement.querySelector('.close');
+            const minimizeBtn = windowElement.querySelector('.minimize');
+            const maximizeBtn = windowElement.querySelector('.maximize');
+            const fullscreenBtn = windowElement.querySelector('.fullscreen');
+            
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Add close animation
+                windowElement.style.animation = 'windowClose 0.3s ease-in forwards';
+                setTimeout(() => {
+                    windowElement.remove();
+                }, 300);
+            });
+            
+            minimizeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Toggle window minimized state
+                windowElement.classList.toggle('minimized');
+                const content = windowElement.querySelector('.window-content');
+                if (windowElement.classList.contains('minimized')) {
+                    content.style.display = 'none';
+                    windowElement.style.height = '30px';
+                } else {
+                    content.style.display = 'block';
+                    windowElement.style.height = height + 'px';
+                }
+            });
+            
+            maximizeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Toggle window maximized state
+                windowElement.classList.toggle('maximized');
+                if (windowElement.classList.contains('maximized')) {
+                    windowElement.setAttribute('data-original-width', windowElement.style.width);
+                    windowElement.setAttribute('data-original-height', windowElement.style.height);
+                    windowElement.setAttribute('data-original-left', windowElement.style.left);
+                    windowElement.setAttribute('data-original-top', windowElement.style.top);
+                    windowElement.style.width = '100%';
+                    windowElement.style.height = 'calc(100% - 40px)';
+                    windowElement.style.left = '0';
+                    windowElement.style.top = '0';
+                    windowElement.style.borderRadius = '0';
+                } else {
+                    windowElement.style.width = windowElement.getAttribute('data-original-width');
+                    windowElement.style.height = windowElement.getAttribute('data-original-height');
+                    windowElement.style.left = windowElement.getAttribute('data-original-left');
+                    windowElement.style.top = windowElement.getAttribute('data-original-top');
+                    windowElement.style.borderRadius = '10px';
+                }
+            });
+            
+            // Add fullscreen toggle functionality
+            fullscreenBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFullscreen(windowElement);
+            });
+            
+            // Make window draggable
+            makeDraggable(windowElement);
+            
+            // Add double-click to toggle fullscreen on window header
+            const windowHeader = windowElement.querySelector('.window-header');
+            windowHeader.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                toggleFullscreen(windowElement);
+            });
+            
+            return windowElement;
+        }
+
+        // Make Element Draggable
+        function makeDraggable(element) {
+            const header = element.querySelector('.window-header');
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            
+            header.onmousedown = dragMouseDown;
+            
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+            
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                // Account for page scrolling
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+            
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // Create Welcome Window
+        function createWelcomeWindow() {
+            const content = `
+                <div style="text-align: center; padding: 20px;">
+                    <h1 style="font-size: 36px; margin-bottom: 20px;">PyOS</h1>
+                    <p style="font-size: 18px; margin-bottom: 30px;">Python Operating System</p>
+                    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                        <button class="editor-btn" onclick="createTerminalWindow()">Terminal</button>
+                        <button class="editor-btn" onclick="createEditorWindow()">Editor</button>
+                        <button class="editor-btn" onclick="createLearnWindow()">Learn Python</button>
+                        <button class="editor-btn" onclick="createFileExplorerWindow()">File Explorer</button>
+                        <button class="editor-btn" onclick="createDesktopFile()">Create File</button>
+                        <button class="editor-btn" onclick="createFuntiknowApp()">Funtiknow</button>
+                        <button class="editor-btn" onclick="createPyGameDoc()">Create PyGame Doc</button>
+                        <button class="editor-btn" onclick="createScrollDemo()">Scrolling Demo</button>
+                    </div>
+                </div>
+            `;
+            createWindow('Welcome to PyOS', content, 500, 300);
+        }
+        
+        // Create Desktop File
+        function createDesktopFile() {
+            const fileName = prompt('Enter file name:', 'new_file.py');
+            if (fileName) {
+                const fileContent = `# ${fileName}
+
+# Your code goes here
+print("Hello from ${fileName}!")
+`;
+                saveFileToSystem(fileName, fileContent);
+                alert(`File "${fileName}" created successfully!`);
+                
+                // Refresh file explorer if it's open
+                refreshFileExplorer();
+            }
+        }
+        
+        // Create Scrolling Demo Window
+        function createScrollDemo() {
+            const content = `
+                <div style="padding: 20px; height: 100%; display: flex; flex-direction: column;">
+                    <h2 style="margin-bottom: 15px;">Scrolling Demo</h2>
+                    <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="editor-btn" onclick="scrollDemo('top')">Scroll to Top</button>
+                        <button class="editor-btn" onclick="scrollDemo('bottom')">Scroll to Bottom</button>
+                        <button class="editor-btn" onclick="scrollDemo('up')">Scroll Up</button>
+                        <button class="editor-btn" onclick="scrollDemo('down')">Scroll Down</button>
+                        <button class="editor-btn" onclick="scrollDemo('smooth')">Smooth Scroll</button>
+                    </div>
+                    <div id="scroll-demo-content" style="flex-grow: 1; overflow-y: auto; background: var(--secondary-bg); border-radius: 8px; padding: 15px; height: 300px;">
+                        <h3>Scrolling Demonstration Content</h3>
+                        <p>This is a demonstration of the scrolling functionality implemented in PyOS.</p>
+                        
+                        <div style="height: 50px;"></div>
+                        <h4>Section 1: Basic Scrolling</h4>
+                        <p>Basic scrolling allows you to move through content vertically. You can scroll using:</p>
+                        <ul>
+                            <li>Mouse wheel</li>
+                            <li>Arrow keys (up/down)</li>
+                            <li>Page Up/Page Down keys</li>
+                            <li>Home/End keys</li>
+                        </ul>
+                        
+                        <div style="height: 100px;"></div>
+                        <h4>Section 2: Programmatic Scrolling</h4>
+                        <p>Programmatic scrolling allows you to control scrolling through JavaScript functions:</p>
+                        <ul>
+                            <li><code>scrollToTop(element)</code> - Scroll to the top of an element</li>
+                            <li><code>scrollToBottom(element)</code> - Scroll to the bottom of an element</li>
+                            <li><code>scrollElement(element, direction, amount)</code> - Scroll in a specific direction</li>
+                            <li><code>enhancedScrollTo(element, position, options)</code> - Smooth scrolling with options</li>
+                        </ul>
+                        
+                        <div style="height: 100px;"></div>
+                        <h4>Section 3: Auto-scrolling</h4>
+                        <p>Auto-scrolling is useful for dynamic content like terminals:</p>
+                        <ul>
+                            <li>Automatically scrolls to new content when added</li>
+                            <li>Preserves user scroll position when they've scrolled up</li>
+                            <li>Smooth animation for better user experience</li>
+                        </ul>
+                        
+                        <div style="height: 100px;"></div>
+                        <h4>Section 4: Smooth Scrolling</h4>
+                        <p>Smooth scrolling provides a better user experience:</p>
+                        <ul>
+                            <li>Ease-out animation for natural movement</li>
+                            <li>Configurable duration and behavior</li>
+                            <li>Works with all scroll functions</li>
+                        </ul>
+                        
+                        <div style="height: 100px;"></div>
+                        <h4>Section 5: Keyboard Navigation</h4>
+                        <p>Keyboard navigation enhances accessibility:</p>
+                        <ul>
+                            <li>Arrow keys for fine control</li>
+                            <li>Page keys for larger jumps</li>
+                            <li>Home/End for extremes</li>
+                            <li>Focus management for proper handling</li>
+                        </ul>
+                        
+                        <div style="height: 100px;"></div>
+                        <h4>End of Content</h4>
+                        <p>This marks the end of the scrolling demonstration content. Use the buttons above to test different scrolling functions.</p>
+                    </div>
+                </div>
+            `;
+            createWindow('Scrolling Demo', content, 700, 500);
+        }
+        
+        // Scroll Demo Function
+        function scrollDemo(action) {
+            const contentDiv = document.getElementById('scroll-demo-content');
+            if (!contentDiv) return;
+            
+            switch(action) {
+                case 'top':
+                    scrollToTop(contentDiv);
+                    break;
+                case 'bottom':
+                    scrollToBottom(contentDiv);
+                    break;
+                case 'up':
+                    scrollElement(contentDiv, 'up', 100);
+                    break;
+                case 'down':
+                    scrollElement(contentDiv, 'down', 100);
+                    break;
+                case 'smooth':
+                    // Scroll to a specific position with smooth animation
+                    const targetPosition = contentDiv.scrollHeight / 2;
+                    enhancedScrollTo(contentDiv, targetPosition, { duration: 1000 });
+                    break;
+            }
+        }
+        
+        // Create PyGame Projects Documentation
+        function createPyGameDoc() {
+            const fileName = 'pygame_projects.md';
+            const fileContent = '# PyGame Projects Documentation\n\n## Introduction\nPyGame is a cross-platform set of Python modules designed for writing video games. It includes computer graphics and sound libraries designed to be used with the Python programming language.\n\n## Getting Started\nTo get started with PyGame, you need to install it first:\n\n```bash\npip install pygame\n```\n\n## Basic PyGame Template\n```python\nimport pygame\nimport sys\n\n# Initialize Pygame\npygame.init()\n\n# Set up the display\nscreen = pygame.display.set_mode((800, 600))\npygame.display.set_caption("My PyGame Window")\n\n# Game loop\nrunning = True\nwhile running:\n    # Handle events\n    for event in pygame.event.get():\n        if event.type == pygame.QUIT:\n            running = False\n    \n    # Fill the screen with a color\n    screen.fill((0, 0, 0))  # Black background\n    \n    # Update the display\n    pygame.display.flip()\n\n# Quit Pygame\npygame.quit()\nsys.exit()\n```\n\n## Project Ideas\n\n### 1. Snake Game\nA classic snake game where the player controls a snake that grows by eating food.\n\n**Key Concepts:**\n- Keyboard input handling\n- Collision detection\n- Score tracking\n- Game states\n\n### 2. Space Invaders\nA space shooter game where the player defends against alien invaders.\n\n**Key Concepts:**\n- Sprite management\n- Projectile handling\n- Enemy AI\n- Sound effects\n\n### 3. Pong\nA recreation of the classic arcade game Pong.\n\n**Key Concepts:**\n- Physics simulation\n- Ball movement\n- Paddle control\n- Score system\n\n### 4. Flappy Bird\nA side-scroller where the player controls a bird, attempting to fly between columns of green pipes.\n\n**Key Concepts:**\n- Gravity simulation\n- Random obstacle generation\n- Timing and difficulty progression\n\n### 5. Tic Tac Toe\nA simple implementation of the classic game.\n\n**Key Concepts:**\n- Grid-based game logic\n- Win condition checking\n- AI opponent (optional)\n\n## Useful PyGame Functions\n\n### Display Functions\n- `pygame.display.set_mode()`: Initialize a window or screen for display\n- `pygame.display.set_caption()`: Set the current window caption\n- `pygame.display.flip()`: Update the full display Surface to the screen\n\n### Drawing Functions\n- `pygame.draw.rect()`: Draw a rectangle\n- `pygame.draw.circle()`: Draw a circle\n- `pygame.draw.line()`: Draw a straight line\n- `pygame.draw.polygon()`: Draw a polygon\n\n### Event Handling\n- `pygame.event.get()`: Get events from the queue\n- `pygame.KEYDOWN`: Key pressed event\n- `pygame.MOUSEBUTTONDOWN`: Mouse button pressed event\n\n### Sound Functions\n- `pygame.mixer.Sound()`: Create a new Sound object\n- `pygame.mixer.music.load()`: Load a music file for playback\n- `pygame.mixer.music.play()`: Start the playback of the music stream\n\n## Best Practices\n\n1. **Use Classes**: Organize your code using classes for game objects\n2. **Separate Logic and Rendering**: Keep game logic separate from rendering code\n3. **Limit Frame Rate**: Use `pygame.time.Clock()` to control frame rate\n4. **Handle Events Properly**: Always process the event queue to prevent freezing\n5. **Optimize Drawing**: Only draw what\'s necessary each frame\n\n## Resources\n- [Official PyGame Documentation](https://www.pygame.org/docs/)\n- [PyGame Tutorials](https://www.pygame.org/wiki/tutorials)\n- [Real Python PyGame Guide](https://realpython.com/pygame-a-primer/)\n';
+            saveFileToSystem(fileName, fileContent);
+            alert(`PyGame documentation file "${fileName}" created successfully!`);
+            
+            // Refresh file explorer if it's open
+            refreshFileExplorer();
+        }
+        
+        // Create Funtiknow App
+        function createFuntiknowApp() {
+            const content = `
+                <div style="padding: 20px; height: 100%; display: flex; flex-direction: column;">
+                    <h2 style="margin-bottom: 15px;">Python Functions Reference</h2>
+                    <div style="display: flex; margin-bottom: 15px;">
+                        <input type="text" id="searchInput" placeholder="Search functions..." style="flex-grow: 1; padding: 8px; background: var(--secondary-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <button class="editor-btn" onclick="filterFunctions()" style="margin-left: 10px;">Search</button>
+                    </div>
+                    <div style="flex-grow: 1; overflow-y: auto; background: var(--secondary-bg); border-radius: 8px; padding: 15px;">
+                        <div id="functionsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                            ${getPythonFunctionsHTML()}
+                        </div>
+                    </div>
+                </div>
+            `;
+            createWindow('Funtiknow - Python Functions Reference', content, 800, 600);
+            
+            // Add search functionality after window is created
+            setTimeout(() => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('keyup', function(event) {
+                        if (event.key === 'Enter') {
+                            filterFunctions();
+                        }
+                    });
+                }
+            }, 100);
+        }
+        
+        // Get Python Functions HTML
+        function getPythonFunctionsHTML(filter = '') {
+            const functions = [
+                { name: 'abs()', description: 'Returns the absolute value of a number' },
+                { name: 'all()', description: 'Returns True if all items in an iterable object are true' },
+                { name: 'any()', description: 'Returns True if any item in an iterable object is true' },
+                { name: 'ascii()', description: 'Returns a readable version of an object. Replaces none-ascii characters with escape character' },
+                { name: 'bin()', description: 'Returns the binary version of a number' },
+                { name: 'bool()', description: 'Returns the boolean value of the specified object' },
+                { name: 'bytearray()', description: 'Returns an array of bytes' },
+                { name: 'bytes()', description: 'Returns a bytes object' },
+                { name: 'callable()', description: 'Returns True if the specified object is callable, otherwise False' },
+                { name: 'chr()', description: 'Returns a character from the specified Unicode code.' },
+                { name: 'classmethod()', description: 'Converts a method into a class method' },
+                { name: 'compile()', description: 'Returns the specified source as an object, ready to be executed' },
+                { name: 'complex()', description: 'Returns a complex number' },
+                { name: 'delattr()', description: 'Deletes the specified attribute (property or method) from the specified object' },
+                { name: 'dict()', description: 'Returns a dictionary (Array)' },
+                { name: 'dir()', description: 'Returns a list of the specified object\'s properties and methods' },
+                { name: 'divmod()', description: 'Returns the quotient and the remainder when argument1 is divided by argument2' },
+                { name: 'enumerate()', description: 'Takes a collection (e.g. a tuple) and returns it as an enumerate object' },
+                { name: 'eval()', description: 'Evaluates and executes an expression' },
+                { name: 'exec()', description: 'Executes the specified code (or object)' },
+                { name: 'filter()', description: 'Use a filter function to exclude items in an iterable object' },
+                { name: 'float()', description: 'Returns a floating point number' },
+                { name: 'format()', description: 'Formats a specified value' },
+                { name: 'frozenset()', description: 'Returns a frozenset object' },
+                { name: 'getattr()', description: 'Returns the value of the specified attribute (property or method)' },
+                { name: 'globals()', description: 'Returns the current global symbol table as a dictionary' },
+                { name: 'hasattr()', description: 'Returns True if the specified object has the specified attribute (property/method)' },
+                { name: 'hash()', description: 'Returns the hash value of a specified object' },
+                { name: 'help()', description: 'Executes the built-in help system' },
+                { name: 'hex()', description: 'Converts a number into a hexadecimal value' },
+                { name: 'id()', description: 'Returns the id of an object' },
+                { name: 'input()', description: 'Allowing user input' },
+                { name: 'int()', description: 'Returns an integer number' },
+                { name: 'isinstance()', description: 'Returns True if a specified object is an instance of a specified object' },
+                { name: 'issubclass()', description: 'Returns True if a specified class is a subclass of a specified object' },
+                { name: 'iter()', description: 'Returns an iterator object' },
+                { name: 'len()', description: 'Returns the length of an object' },
+                { name: 'list()', description: 'Returns a list' },
+                { name: 'locals()', description: 'Returns an updated dictionary of the current local symbol table' },
+                { name: 'map()', description: 'Returns the specified iterator with the specified function applied to each item' },
+                { name: 'max()', description: 'Returns the largest item in an iterable' },
+                { name: 'memoryview()', description: 'Returns a memory view object' },
+                { name: 'min()', description: 'Returns the smallest item in an iterable' },
+                { name: 'next()', description: 'Returns the next item in an iterable' },
+                { name: 'object()', description: 'Returns a new object' },
+                { name: 'oct()', description: 'Converts a number into an octal' },
+                { name: 'open()', description: 'Opens a file and returns a file object' },
+                { name: 'ord()', description: 'Convert an integer representing the Unicode of the specified character' },
+                { name: 'pow()', description: 'Returns the value of x to the power of y' },
+                { name: 'print()', description: 'Prints to the standard output device' },
+                { name: 'property()', description: 'Gets, sets, deletes a property' },
+                { name: 'range()', description: 'Returns a sequence of numbers, starting from 0 and increments by 1 (by default)' },
+                { name: 'repr()', description: 'Returns a readable version of an object' },
+                { name: 'reversed()', description: 'Returns a reversed iterator' },
+                { name: 'round()', description: 'Rounds a numbers' },
+                { name: 'set()', description: 'Returns a new set object' },
+                { name: 'setattr()', description: 'Sets an attribute (property/method) of an object' },
+                { name: 'slice()', description: 'Returns a slice object' },
+                { name: 'sorted()', description: 'Returns a sorted list' },
+                { name: 'staticmethod()', description: 'Converts a method into a static method' },
+                { name: 'str()', description: 'Returns a string object' },
+                { name: 'sum()', description: 'Sums the items of an iterator' },
+                { name: 'super()', description: 'Returns an object that represents the parent class' },
+                { name: 'tuple()', description: 'Returns a tuple' },
+                { name: 'type()', description: 'Returns the type of an object' },
+                { name: 'vars()', description: 'Returns the __dict__ property of an object' },
+                { name: 'zip()', description: 'Returns an iterator, from two or more iterators' },
+                { name: 'capitalize()', description: 'Converts the first character to upper case' },
+                { name: 'casefold()', description: 'Converts string into lower case' },
+                { name: 'center()', description: 'Returns a centered string' },
+                { name: 'count()', description: 'Returns the number of times a specified value occurs in a string' },
+                { name: 'encode()', description: 'Returns an encoded version of the string' },
+                { name: 'endswith()', description: 'Returns true if the string ends with the specified value' },
+                { name: 'expandtabs()', description: 'Sets the tab size of the string' },
+                { name: 'find()', description: 'Searches the string for a specified value and returns the position of where it was found' },
+                { name: 'format()', description: 'Formats specified values in a string' },
+                { name: 'format_map()', description: 'Formats specified values from a dictionary in a string' },
+                { name: 'index()', description: 'Searches the string for a specified value and returns the position of where it was found' },
+                { name: 'isalnum()', description: 'Returns True if all characters in the string are alphanumeric' },
+                { name: 'isalpha()', description: 'Returns True if all characters in the string are in the alphabet' },
+                { name: 'isascii()', description: 'Returns True if all characters in the string are ascii characters' },
+                { name: 'isdecimal()', description: 'Returns True if all characters in the string are decimals' },
+                { name: 'isdigit()', description: 'Returns True if all characters in the string are digits' },
+                { name: 'isidentifier()', description: 'Returns True if the string is an identifier' },
+                { name: 'islower()', description: 'Returns True if all characters in the string are lower case' },
+                { name: 'isnumeric()', description: 'Returns True if all characters in the string are numeric' },
+                { name: 'isprintable()', description: 'Returns True if all characters in the string are printable' },
+                { name: 'isspace()', description: 'Returns True if all characters in the string are whitespaces' },
+                { name: 'istitle()', description: 'Returns True if the string follows the rules of a title' },
+                { name: 'isupper()', description: 'Returns True if all characters in the string are upper case' },
+                { name: 'join()', description: 'Converts the elements of an iterable into a string' },
+                { name: 'ljust()', description: 'Returns a left justified version of the string' },
+                { name: 'lower()', description: 'Converts a string into lower case' },
+                { name: 'lstrip()', description: 'Returns a left trim version of the string' },
+                { name: 'maketrans()', description: 'Returns a translation table to be used in translations' },
+                { name: 'partition()', description: 'Returns a tuple where the string is parted into three parts' },
+                { name: 'replace()', description: 'Returns a string where a specified value is replaced with a specified value' },
+                { name: 'rfind()', description: 'Searches the string for a specified value and returns the last position of where it was found' },
+                { name: 'rindex()', description: 'Searches the string for a specified value and returns the last position of where it was found' },
+                { name: 'rjust()', description: 'Returns a right justified version of the string' },
+                { name: 'rpartition()', description: 'Returns a tuple where the string is parted into three parts' },
+                { name: 'rsplit()', description: 'Splits the string at the specified separator, and returns a list' },
+                { name: 'rstrip()', description: 'Returns a right trim version of the string' },
+                { name: 'split()', description: 'Splits the string at the specified separator, and returns a list' },
+                { name: 'splitlines()', description: 'Splits the string at line breaks and returns a list' },
+                { name: 'startswith()', description: 'Returns true if the string starts with the specified value' },
+                { name: 'strip()', description: 'Returns a trimmed version of the string' },
+                { name: 'swapcase()', description: 'Swaps cases, lower case becomes upper case and vice versa' },
+                { name: 'title()', description: 'Converts the first character of each word to upper case' },
+                { name: 'translate()', description: 'Returns a translated string' },
+                { name: 'upper()', description: 'Converts a string into upper case' },
+                { name: 'zfill()', description: 'Fills the string with a specified number of 0 values at the beginning' },
+                { name: 'append()', description: 'Adds an element at the end of the list' },
+                { name: 'clear()', description: 'Removes all the elements from the list' },
+                { name: 'copy()', description: 'Returns a copy of the list' },
+                { name: 'count()', description: 'Returns the number of elements with the specified value' },
+                { name: 'extend()', description: 'Add the elements of a list (or any iterable), to the end of the current list' },
+                { name: 'index()', description: 'Returns the index of the first element with the specified value' },
+                { name: 'insert()', description: 'Adds an element at the specified position' },
+                { name: 'pop()', description: 'Removes the element at the specified position' },
+                { name: 'remove()', description: 'Removes the first item with the specified value' },
+                { name: 'reverse()', description: 'Reverses the order of the list' },
+                { name: 'sort()', description: 'Sorts the list' },
+                { name: 'clear()', description: 'Removes all the elements from the dictionary' },
+                { name: 'copy()', description: 'Returns a copy of the dictionary' },
+                { name: 'fromkeys()', description: 'Returns a dictionary with the specified keys and value' },
+                { name: 'get()', description: 'Returns the value of the specified key' },
+                { name: 'items()', description: 'Returns a list containing a tuple for each key value pair' },
+                { name: 'keys()', description: 'Returns a list containing the dictionary\'s keys' },
+                { name: 'pop()', description: 'Removes the element with the specified key' },
+                { name: 'popitem()', description: 'Removes the last inserted key-value pair' },
+                { name: 'setdefault()', description: 'Returns the value of the specified key. If the key does not exist: insert the key, with the specified value' },
+                { name: 'update()', description: 'Updates the dictionary with the specified key-value pairs' },
+                { name: 'values()', description: 'Returns a list of all the values in the dictionary' }
+            ];
+            
+            // Filter functions if search term provided
+            const filteredFunctions = filter ? 
+                functions.filter(func => func.name.toLowerCase().includes(filter.toLowerCase()) || 
+                                       func.description.toLowerCase().includes(filter.toLowerCase())) :
+                functions;
+            
+            // Generate HTML for functions
+            return filteredFunctions.map(func => `
+                <div style="background: rgba(30, 30, 30, 0.7); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h3 style="color: var(--accent-color); margin-bottom: 8px;">${func.name}</h3>
+                    <p style="font-size: 14px; margin: 0;">${func.description}</p>
+                </div>
+            `).join('');
+        }
+        
+        // Filter Functions
+        function filterFunctions() {
+            const searchInput = document.getElementById('searchInput');
+            const functionsList = document.getElementById('functionsList');
+            
+            if (searchInput && functionsList) {
+                const searchTerm = searchInput.value;
+                functionsList.innerHTML = getPythonFunctionsHTML(searchTerm);
+            }
+        }
+        
+        // Save File to System
+        function saveFileToSystem(fileName, content) {
+            // Save to localStorage
+            localStorage.setItem(`pyos-file-${fileName}`, content);
+            
+            // Update file system
+            PyOS.fileSystem.files[fileName] = content;
+            
+            // Add to projects list if it's a Python file
+            if (fileName.endsWith('.py') && !PyOS.fileSystem.projects.find(p => p.name === fileName)) {
+                PyOS.fileSystem.projects.push({
+                    name: fileName,
+                    type: 'file',
+                    content: content
+                });
+            }
+        }
+        
+        // Load File from System
+        function loadFileFromSystem(fileName) {
+            // Try to load from localStorage first
+            const content = localStorage.getItem(`pyos-file-${fileName}`);
+            if (content) {
+                return content;
+            }
+            
+            // Try to load from in-memory file system
+            return PyOS.fileSystem.files[fileName] || null;
+        }
+        
+        // List Files in System
+        function listFilesInSystem() {
+            // Get files from localStorage
+            const files = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('pyos-file-')) {
+                    const fileName = key.replace('pyos-file-', '');
+                    files.push(fileName);
+                }
+            }
+            
+            // Add files from in-memory file system
+            Object.keys(PyOS.fileSystem.files).forEach(fileName => {
+                if (!files.includes(fileName)) {
+                    files.push(fileName);
+                }
+            });
+            
+            return files;
+        }
+        
+        // Refresh File Explorer
+        function refreshFileExplorer() {
+            // Find all open file explorer windows and update their content
+            const fileExplorerWindows = document.querySelectorAll('.window');
+            fileExplorerWindows.forEach(windowElement => {
+                const fileList = windowElement.querySelector('#file-list');
+                if (fileList) {
+                    // Update the file list
+                    const files = listFilesInSystem();
+                    fileList.innerHTML = `
+                        ${files.length > 0 ? 
+                            files.map(file => `<div class="sidebar-item file-item" data-file="${file}">📄 ${file}</div>`).join('') :
+                            '<div class="sidebar-item">No files found</div>'
+                        }
+                        <div style="margin-top: 20px;">
+                            <button class="editor-btn" onclick="createDesktopFile()">Create New File</button>
+                        </div>
+                    `;
+                    
+                    // Re-attach event listeners to file items
+                    setTimeout(() => {
+                        const fileItems = windowElement.querySelectorAll('.file-item');
+                        fileItems.forEach(item => {
+                            item.addEventListener('dblclick', function() {
+                                const fileName = this.getAttribute('data-file');
+                                openFile(fileName);
+                            });
+                        });
+                    }, 100);
+                }
+            });
+        }
+        
+        // Enhanced File Explorer
+        function createFileExplorerWindow() {
+            updateFileExplorerContent();
+        }
+        
+        function updateFileExplorerContent() {
+            const files = listFilesInSystem();
+            const content = `
+                <div class="file-explorer">
+                    <div class="sidebar">
+                        <div class="sidebar-item" data-path="/">🏠 Home</div>
+                        <div class="sidebar-item" data-path="/projects">📂 Projects</div>
+                        <div class="sidebar-item" data-path="/lessons">📘 Lessons</div>
+                        <div class="sidebar-item" data-path="/settings">⚙️ Settings</div>
+                    </div>
+                    <div class="file-content">
+                        <h3 id="current-folder">Files</h3>
+                        <div id="file-list">
+                            ${files.length > 0 ? 
+                                files.map(file => `<div class="sidebar-item file-item" data-file="${file}">📄 ${file}</div>`).join('') :
+                                '<div class="sidebar-item">No files found</div>'
+                            }
+                            <div style="margin-top: 20px;">
+                                <button class="editor-btn" onclick="createDesktopFile()">Create New File</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const windowElement = createWindow('File Explorer', content, 600, 400);
+            
+            // Add event listeners to file items
+            setTimeout(() => {
+                const fileItems = windowElement.querySelectorAll('.file-item');
+                fileItems.forEach(item => {
+                    item.addEventListener('dblclick', function() {
+                        const fileName = this.getAttribute('data-file');
+                        openFile(fileName);
+                    });
+                });
+                
+                // Add event listeners to sidebar items
+                const sidebarItems = windowElement.querySelectorAll('.sidebar-item:not(.file-item)');
+                sidebarItems.forEach(item => {
+                    item.addEventListener('click', function() {
+                        const path = this.getAttribute('data-path');
+                        const folderName = this.textContent.trim().replace(/[^\w\s]/g, '');
+                        updateFileExplorer(path, folderName, windowElement);
+                    });
+                });
+            }, 100);
+        }
+        
+        // Create Terminal Window
+        function createTerminalWindow(terminalType = 'python') {
+            const content = `
+                <div class="terminal" id="terminal-${terminalType}">
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">PyOS-${terminalType} $</span> 
+                        <input type="text" class="terminal-input" placeholder="Type a command...">
+                    </div>
+                </div>
+            `;
+            
+            const windowElement = createWindow(`${terminalType} Terminal`, content, 700, 400);
+            
+            // Add terminal functionality
+            const terminal = windowElement.querySelector('.terminal');
+            const input = windowElement.querySelector('.terminal-input');
+            
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const command = input.value;
+                    input.value = '';
+                    
+                    // Add command to terminal
+                    const commandLine = document.createElement('div');
+                    commandLine.className = 'terminal-line';
+                    commandLine.style.animation = 'terminalEnter 0.2s ease-out';
+                    commandLine.innerHTML = `<span class="terminal-prompt">PyOS-${terminalType} $</span> ${command}`;
+                    terminal.appendChild(commandLine);
+                    
+                    // Process command
+                    processCommand(command, terminalType, terminal);
+                    
+                    // Scroll to bottom using enhanced scroll function
+                    enhancedScrollTo(terminal, terminal.scrollHeight);
+                }
+            });
+        }
+
+        // Process Terminal Command
+        function processCommand(command, terminalType, terminal) {
+            const outputLine = document.createElement('div');
+            outputLine.className = 'terminal-line terminal-output';
+            outputLine.style.animation = 'terminalEnter 0.2s ease-out';
+            
+            // Simulate command processing
+            let output = '';
+            
+            switch(terminalType) {
+                case 'python':
+                    output = processPythonCommand(command);
+                    break;
+                case 'ipython':
+                    output = processIPythonCommand(command);
+                    break;
+                case 'jupyter':
+                    output = processJupyterCommand(command);
+                    break;
+                case 'bash':
+                    output = processBashCommand(command);
+                    break;
+                case 'debug':
+                    output = processDebugCommand(command);
+                    break;
+                default:
+                    output = `Command not found: ${command}`;
+            }
+            
+            outputLine.textContent = output;
+            terminal.appendChild(outputLine);
+            
+            // Auto-scroll to bottom after adding new content
+            autoScrollToBottom(terminal);
+        }
+
+        // Process Python Command
+        function processPythonCommand(command) {
+            if (command.trim() === '') return '';
+            
+            // Simulate Python execution
+            try {
+                if (command.startsWith('print(')) {
+                    const match = command.match(/print\((.*)\)/);
+                    if (match) {
+                        return match[1].replace(/['"]/g, '');
+                    }
+                } else if (command.includes('+') || command.includes('-') || command.includes('*') || command.includes('/')) {
+                    // Simple math evaluation
+                    try {
+                        const result = eval(command);
+                        return result.toString();
+                    } catch (e) {
+                        return `Error: ${e.message}`;
+                    }
+                } else if (command === 'help()') {
+                    return 'Welcome to PyOS Python Terminal. Type Python commands to execute.';
+                } else if (command === 'exit()' || command === 'quit()') {
+                    return 'Use the window close button to exit the terminal.';
+                } else {
+                    return `>>> ${command}`;
+                }
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        // Process IPython Command
+        function processIPythonCommand(command) {
+            if (command.trim() === '') return '';
+            
+            // Simulate IPython execution with syntax highlighting
+            try {
+                if (command.startsWith('print(')) {
+                    const match = command.match(/print\((.*)\)/);
+                    if (match) {
+                        return match[1].replace(/['"]/g, '');
+                    }
+                } else if (command.includes('+') || command.includes('-') || command.includes('*') || command.includes('/')) {
+                    // Simple math evaluation
+                    try {
+                        const result = eval(command);
+                        return result.toString();
+                    } catch (e) {
+                        return `Error: ${e.message}`;
+                    }
+                } else if (command === 'help()') {
+                    return 'Welcome to PyOS IPython Terminal. Type Python commands to execute.';
+                } else if (command === 'exit()' || command === 'quit()') {
+                    return 'Use the window close button to exit the terminal.';
+                } else {
+                    return `>>> ${command}`;
+                }
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        // Process Jupyter Command
+        function processJupyterCommand(command) {
+            if (command.trim() === '') return '';
+            
+            // Simulate Jupyter execution with syntax highlighting
+            try {
+                if (command.startsWith('print(')) {
+                    const match = command.match(/print\((.*)\)/);
+                    if (match) {
+                        return match[1].replace(/['"]/g, '');
+                    }
+                } else if (command.includes('+') || command.includes('-') || command.includes('*') || command.includes('/')) {
+                    // Simple math evaluation
+                    try {
+                        const result = eval(command);
+                        return result.toString();
+                    } catch (e) {
+                        return `Error: ${e.message}`;
+                    }
+                } else if (command === 'help()') {
+                    return 'Welcome to PyOS Jupyter Terminal. Type Python commands to execute.';
+                } else if (command === 'exit()' || command === 'quit()') {
+                    return 'Use the window close button to exit the terminal.';
+                } else {
+                    return `>>> ${command}`;
+                }
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        // Process Bash Command
+        function processBashCommand(command) {
+            if (command.trim() === '') return '';
+            
+            // Simulate Bash execution
+            try {
+                if (command === 'ls') {
+                    return listFilesInSystem().join('\n');
+                } else if (command === 'help()') {
+                    return 'Welcome to PyOS Bash Terminal. Type Bash commands to execute.';
+                } else if (command === 'exit()' || command === 'quit()') {
+                    return 'Use the window close button to exit the terminal.';
+                } else {
+                    return `>>> ${command}`;
+                }
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        // Process Debug Command
+        function processDebugCommand(command) {
+            if (command.trim() === '') return '';
+            
+            // Simulate Debug execution
+            try {
+                if (command === 'help()') {
+                    return 'Welcome to PyOS Debug Terminal. Type Debug commands to execute.';
+                } else if (command === 'exit()' || command === 'quit()') {
+                    return 'Use the window close button to exit the terminal.';
+                } else {
+                    return `>>> ${command}`;
+                }
+            } catch (e) {
+                return `Error: ${e.message}`;
+            }
+        }
+
+        // Create Editor Window
+        function createEditorWindow() {
+            const content = `
+                <div class="editor">
+                    <textarea class="editor-input" placeholder="Type your code here..."></textarea>
+                </div>
+            `;
+            createWindow('Editor', content, 700, 400);
+        }
+
+        // Create Learn Window
+        function createLearnWindow() {
+            const content = `
+                <div class="learn">
+                    <h2>Learn Python</h2>
+                    <p>Welcome to the PyOS Python Learning Center. Here you can learn the basics of Python programming.</p>
+                    <div class="learn-content">
+                        <h3>Getting Started</h3>
+                        <p>Python is a high-level, interpreted programming language known for its simplicity and readability. It is widely used for web development, data analysis, artificial intelligence, and more.</p>
+                        <h3>Basic Syntax</h3>
+                        <p>Here are some basic Python syntax examples:</p>
+                        <pre>
+print("Hello, World!")
+
+# Variables
+x = 5
+y = "Hello, PyOS!"
+
+# If statement
+if x > 0:
+    print("x is positive")
+
+# For loop
+for i in range(5):
+    print(i)
+
+# Function
+def greet(name):
+    return f"Hello, {name}!"
+
+print(greet("Alice"))
+                        </pre>
+                    </div>
+                </div>
+            `;
+            createWindow('Learn Python', content, 700, 400);
+        }
+
+
+
+
+
+        // Initialize PyOS
+        function initPyOS() {
+            createWelcomeWindow();
+        }
+
+
+
+
+
+        
+
+
+
+        // Create Editor Window
+        function createEditorWindow() {
+            const content = `
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn" id="run-btn">▶ Run</button>
+                        <button class="editor-btn" id="save-btn">💾 Save</button>
+                        <button class="editor-btn" id="load-btn">📂 Load</button>
+                        <select class="editor-btn" id="theme-selector">
+                            <option value="default">Default</option>
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                        <select class="editor-btn" id="file-selector">
+                            <option value="">Open File</option>
+                            <option value="hello_world.py">hello_world.py</option>
+                            <option value="fibonacci.py">fibonacci.py</option>
+                            <option value="data_analysis.py">data_analysis.py</option>
+                        </select>
+                    </div>
+                    <textarea class="editor-textarea" id="code-editor" placeholder="# Write your Python code here
+print('Hello, PyOS!')
+
+# Example code:
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+print(fibonacci(10))"></textarea>
+                    <div class="terminal" id="output-terminal" style="height: 150px; margin-top: 10px;">
+                        <div class="terminal-line">Python 3.9.7 (PyOS Runtime)</div>
+                        <div class="terminal-line">Type "help()", "copyright", "credits" or "license" for more information.</div>
+                    </div>
+                </div>
+            `;
+            
+            const windowElement = createWindow('Python Editor', content, 800, 600);
+            
+            // Add editor functionality after a short delay
+            setTimeout(() => {
+                // Run button
+                const runBtn = windowElement.querySelector('#run-btn');
+                if (runBtn) {
+                    runBtn.addEventListener('click', function() {
+                        runCode(windowElement);
+                    });
+                }
+                
+                // Save button
+                const saveBtn = windowElement.querySelector('#save-btn');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', function() {
+                        saveFile(windowElement);
+                    });
+                }
+                
+                // Load button
+                const loadBtn = windowElement.querySelector('#load-btn');
+                if (loadBtn) {
+                    loadBtn.addEventListener('click', function() {
+                        loadFile(windowElement);
+                    });
+                }
+                
+                // Theme selector
+                const themeSelector = windowElement.querySelector('#theme-selector');
+                if (themeSelector) {
+                    themeSelector.addEventListener('change', function() {
+                        const editor = windowElement.querySelector('#code-editor');
+                        if (editor) {
+                            editor.className = `editor-textarea theme-${this.value}`;
+                        }
+                    });
+                }
+                
+                // File selector
+                const fileSelector = windowElement.querySelector('#file-selector');
+                if (fileSelector) {
+                    fileSelector.addEventListener('change', function() {
+                        const fileName = this.value;
+                        if (fileName) {
+                            loadSampleFile(fileName, windowElement);
+                        }
+                    });
+                }
+                
+                // Add scroll handling for the editor
+                const editorTextarea = windowElement.querySelector('#code-editor');
+                if (editorTextarea) {
+                    addScrollFunctionality(editorTextarea);
+                }
+                
+                // Add scroll handling for the output terminal
+                const outputTerminal = windowElement.querySelector('#output-terminal');
+                if (outputTerminal) {
+                    addScrollFunctionality(outputTerminal);
+                }
+            }, 100);
+            
+            return windowElement;
+        }
+        
+        // Run Code in Editor
+        function runCode(windowElement) {
+            const editor = windowElement.querySelector('#code-editor');
+            const outputTerminal = windowElement.querySelector('#output-terminal');
+            
+            if (editor && outputTerminal) {
+                const code = editor.value;
+                
+                // Add command to terminal
+                const commandLine = document.createElement('div');
+                commandLine.className = 'terminal-line';
+                commandLine.innerHTML = `<span class="terminal-prompt">>>>></span> Executing code...`;
+                outputTerminal.appendChild(commandLine);
+                
+                // Simulate code execution
+                const outputLine = document.createElement('div');
+                outputLine.className = 'terminal-line';
+                
+                // Simple code execution simulation
+                try {
+                    if (code.includes('print(')) {
+                        // Extract print statements
+                        const printMatches = code.match(/print\((.*)\)/g);
+                        if (printMatches) {
+                            let output = '';
+                            printMatches.forEach(match => {
+                                const content = match.match(/print\((.*)\)/)[1];
+                                // Simple evaluation for demonstration
+                                if (content.includes('"') || content.includes("'")) {
+                                    output += content.replace(/['"]/g, '') + '\n';
+                                } else if (!isNaN(content)) {
+                                    output += content + '\n';
+                                } else {
+                                    output += `[Result of ${content}]\n`;
+                                }
+                            });
+                            outputLine.textContent = output.trim();
+                        } else {
+                            outputLine.textContent = 'Code executed successfully!';
+                        }
+                    } else if (code.includes('def ')) {
+                        outputLine.textContent = 'Function defined successfully!';
+                    } else if (code.includes('+') || code.includes('-') || code.includes('*') || code.includes('/')) {
+                        // Simple math evaluation
+                        try {
+                            const result = eval(code);
+                            outputLine.textContent = result.toString();
+                        } catch (e) {
+                            outputLine.textContent = `Error: ${e.message}`;
+                        }
+                    } else {
+                        outputLine.textContent = 'Code executed successfully!';
+                    }
+                } catch (e) {
+                    outputLine.textContent = `Error: ${e.message}`;
+                }
+                
+                outputTerminal.appendChild(outputLine);
+                outputTerminal.scrollTop = outputTerminal.scrollHeight;
+            }
+        }
+        
+        // Save File
+        function saveFile(windowElement) {
+            const editor = windowElement.querySelector('#code-editor');
+            if (editor) {
+                const code = editor.value;
+                localStorage.setItem('pyos-code', code);
+                
+                const outputTerminal = windowElement.querySelector('#output-terminal');
+                if (outputTerminal) {
+                    const outputLine = document.createElement('div');
+                    outputLine.className = 'terminal-line';
+                    outputLine.textContent = '>>> File saved to local storage';
+                    outputTerminal.appendChild(outputLine);
+                    outputTerminal.scrollTop = outputTerminal.scrollHeight;
+                }
+            }
+        }
+        
+        // Load File
+        function loadFile(windowElement) {
+            const savedCode = localStorage.getItem('pyos-code');
+            const editor = windowElement.querySelector('#code-editor');
+            
+            if (editor && savedCode) {
+                editor.value = savedCode;
+                
+                const outputTerminal = windowElement.querySelector('#output-terminal');
+                if (outputTerminal) {
+                    const outputLine = document.createElement('div');
+                    outputLine.className = 'terminal-line';
+                    outputLine.textContent = '>>> File loaded from local storage';
+                    outputTerminal.appendChild(outputLine);
+                    outputTerminal.scrollTop = outputTerminal.scrollHeight;
+                }
+            } else {
+                const outputTerminal = windowElement.querySelector('#output-terminal');
+                if (outputTerminal) {
+                    const outputLine = document.createElement('div');
+                    outputLine.className = 'terminal-line';
+                    outputLine.textContent = '>>> No saved file found';
+                    outputTerminal.appendChild(outputLine);
+                    outputTerminal.scrollTop = outputTerminal.scrollHeight;
+                }
+            }
+        }
+        
+        // Load Sample File
+        function loadSampleFile(fileName, windowElement) {
+            const editor = windowElement.querySelector('#code-editor');
+            if (editor) {
+                let content = '';
+                switch(fileName) {
+                    case 'hello_world.py':
+                        content = 'print("Hello, World!")\n\n# This is a simple Python program\nprint("Welcome to PyOS!")';
+                        break;
+                    case 'fibonacci.py':
+                        content = `def fibonacci(n):
+    """Calculate the nth Fibonacci number"""
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+# Test the function
+print("Fibonacci sequence:")
+for i in range(10):
+    print(f"fibonacci({i}) = {fibonacci(i)}")`;
+                        break;
+                    case 'data_analysis.py':
+                        content = `# Data analysis example
+import numpy as np
+
+# Create sample data
+data = np.array([1, 2, 3, 4, 5])
+print(f"Data: {data}")
+
+# Calculate statistics
+mean = np.mean(data)
+std = np.std(data)
+
+print(f"Mean: {mean}")
+print(f"Standard deviation: {std}")`;
+                        break;
+                    default:
+                        content = `# ${fileName}\n\n# File content would appear here`;
+                }
+                editor.value = content;
+            }
+        }
+        
+        // Create File Explorer Window
+        function createFileExplorerWindow() {
+            const content = `
+                <div class="file-explorer">
+                    <div class="sidebar">
+                        <div class="sidebar-item" data-path="/">🏠 Home</div>
+                        <div class="sidebar-item" data-path="/projects">📂 Projects</div>
+                        <div class="sidebar-item" data-path="/lessons">📘 Lessons</div>
+                        <div class="sidebar-item" data-path="/settings">⚙️ Settings</div>
+                    </div>
+                    <div class="file-content">
+                        <h3 id="current-folder">Home</h3>
+                        <div id="file-list">
+                            <div class="sidebar-item file-item" data-file="welcome.txt">📄 welcome.txt</div>
+                            <div class="sidebar-item file-item" data-file="readme.md">📄 readme.md</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const windowElement = createWindow('File Explorer', content, 600, 400);
+            
+            // Add event listeners to sidebar items after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                const sidebarItems = windowElement.querySelectorAll('.sidebar-item:not(.file-item)');
+                sidebarItems.forEach(item => {
+                    item.addEventListener('click', function() {
+                        const path = this.getAttribute('data-path');
+                        const folderName = this.textContent.trim().replace(/[^\w\s]/g, '');
+                        updateFileExplorer(path, folderName, windowElement);
+                    });
+                });
+                
+                // Add event listeners to file items
+                const fileItems = windowElement.querySelectorAll('.file-item');
+                fileItems.forEach(item => {
+                    item.addEventListener('dblclick', function() {
+                        const fileName = this.getAttribute('data-file');
+                        openFile(fileName, windowElement);
+                    });
+                });
+                
+                // Add scroll functionality to file content area
+                const fileContent = windowElement.querySelector('.file-content');
+                if (fileContent) {
+                    addScrollFunctionality(fileContent);
+                }
+            }, 100);
+            
+            return windowElement;
+        }
+        
+        // Update File Explorer Content
+        function updateFileExplorer(path, folderName, windowElement) {
+            const currentFolder = windowElement.querySelector('#current-folder');
+            const fileList = windowElement.querySelector('#file-list');
+            
+            if (currentFolder) currentFolder.textContent = folderName;
+            
+            // Update file list based on current path
+            if (fileList) {
+                switch(path) {
+                    case '/projects':
+                        fileList.innerHTML = `
+                            <div class="sidebar-item file-item" data-file="hello_world.py">📄 hello_world.py</div>
+                            <div class="sidebar-item file-item" data-file="fibonacci.py">📄 fibonacci.py</div>
+                            <div class="sidebar-item file-item" data-file="data_analysis.py">📄 data_analysis.py</div>
+                        `;
+                        break;
+                    case '/lessons':
+                        fileList.innerHTML = `
+                            <div class="sidebar-item file-item" data-file="basics.html">📘 basics.html</div>
+                            <div class="sidebar-item file-item" data-file="functions.html">📘 functions.html</div>
+                            <div class="sidebar-item file-item" data-file="oop.html">📘 oop.html</div>
+                        `;
+                        break;
+                    case '/settings':
+                        fileList.innerHTML = `
+                            <div class="sidebar-item file-item" data-file="config.json">⚙️ config.json</div>
+                            <div class="sidebar-item file-item" data-file="preferences.json">⚙️ preferences.json</div>
+                        `;
+                        break;
+                    default:
+                        fileList.innerHTML = `
+                            <div class="sidebar-item file-item" data-file="welcome.txt">📄 welcome.txt</div>
+                            <div class="sidebar-item file-item" data-file="readme.md">📄 readme.md</div>
+                        `;
+                }
+                
+                // Add event listeners to new file items
+                const fileItems = windowElement.querySelectorAll('.file-item');
+                fileItems.forEach(item => {
+                    item.addEventListener('dblclick', function() {
+                        const fileName = this.getAttribute('data-file');
+                        openFile(fileName, windowElement);
+                    });
+                });
+                
+                // Add scroll functionality to file list
+                addScrollFunctionality(fileList);
+            }
+        }
+        
+        // Open File
+        function openFile(fileName, windowElement) {
+            // Check if we're opening a Python file
+            if (fileName.endsWith('.py')) {
+                // Create or focus editor window
+                createEditorWindow();
+                
+                // In a real implementation, this would load the file content into the editor
+                const editor = document.querySelector('#code-editor') || document.querySelector('.editor-textarea');
+                if (editor) {
+                    // Simulate loading file content
+                    let content = '';
+                    switch(fileName) {
+                        case 'hello_world.py':
+                            content = 'print("Hello, World!")\n\n# This is a simple Python program\nprint("Welcome to PyOS!")';
+                            break;
+                        case 'fibonacci.py':
+                            content = `def fibonacci(n):
+    """Calculate the nth Fibonacci number"""
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+# Test the function
+print(fibonacci(10))`;
+                            break;
+                        case 'data_analysis.py':
+                            content = `# Data analysis example
+import numpy as np
+
+# Create sample data
+data = np.array([1, 2, 3, 4, 5])
+print(f"Mean: {np.mean(data)}")`;
+                            break;
+                        default:
+                            content = `# ${fileName}\n\n# File content would appear here`;
+                    }
+                    editor.value = content;
+                }
+            } else {
+                // For other files, show in a preview window
+                const content = `
+                    <div style="padding: 20px;">
+                        <h3>${fileName}</h3>
+                        <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px; overflow: auto;">
+${getFileContent(fileName)}
+                        </pre>
+                    </div>
+                `;
+                createWindow(`Preview: ${fileName}`, content, 600, 400);
+            }
+        }
+        
+        // Get file content (simulated)
+        function getFileContent(fileName) {
+            const files = {
+                'welcome.txt': 'Welcome to PyOS!\n\nThis is your personal Python operating system.\nExplore the file system, run code, and learn Python.',
+                'readme.md': '# PyOS - Python Operating System\n\n## Features\n- Python code editor\n- Multiple terminal types\n- File explorer\n- Learning modules\n\n## Getting Started\n1. Open the terminal\n2. Try running some Python code\n3. Explore the file system',
+                'basics.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>Python Basics</title>\n</head>\n<body>\n    <h1>Python Basics</h1>\n    <p>Learn about variables, data types, and operators.</p>\n</body>\n</html>',
+                'functions.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>Python Functions</title>\n</head>\n<body>\n    <h1>Python Functions</h1>\n    <p>Learn how to define and use functions.</p>\n</body>\n</html>',
+                'oop.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>Object Oriented Programming</title>\n</head>\n<body>\n    <h1>Object Oriented Programming</h1>\n    <p>Learn about classes and objects.</p>\n</body>\n</html>',
+                'config.json': '{\n  "theme": "dark",\n  "accentColor": "#0078d7",\n  "fontSize": 14\n}',
+                'preferences.json': '{\n  "autoSave": true,\n  "lineNumbers": true,\n  "syntaxHighlighting": true\n}'
+            };
+            
+            return files[fileName] || `# ${fileName}\n\nFile content for ${fileName} would appear here.`;
+        }
+
+        // Create Settings Window
+        function createSettingsWindow() {
+            const content = `
+                <div class="settings-panel">
+                    <div class="setting-group">
+                        <div class="setting-title">Theme</div>
+                        <div class="theme-options">
+                            <div class="theme-option" style="background: #1e1e1e;" data-theme="dark"></div>
+                            <div class="theme-option" style="background: #ffffff;" data-theme="light"></div>
+                            <div class="theme-option" style="background: #2d2d2d;" data-theme="oled"></div>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <div class="setting-title">Accent Color</div>
+                        <div class="theme-options">
+                            <div class="theme-option" style="background: #0078d7;" data-color="#0078d7"></div>
+                            <div class="theme-option" style="background: #4ec9b0;" data-color="#4ec9b0"></div>
+                            <div class="theme-option" style="background: #d75a9c;" data-color="#d75a9c"></div>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <div class="setting-title">Terminal</div>
+                        <div>
+                            <label>
+                                <input type="checkbox" id="syntax-highlighting" checked> Enable syntax highlighting
+                            </label>
+                        </div>
+                        <div>
+                            <label>
+                                <input type="checkbox" id="line-numbers"> Show line numbers
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <button class="editor-btn" id="save-settings">Save Settings</button>
+                    </div>
+                </div>
+            `;
+            const windowElement = createWindow('Settings', content, 500, 400);
+            
+            // Add event listeners after a short delay
+            setTimeout(() => {
+                // Theme options
+                const themeOptions = windowElement.querySelectorAll('.theme-option[data-theme]');
+                themeOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const theme = this.getAttribute('data-theme');
+                        changeTheme(theme);
+                        
+                        // Update active state
+                        themeOptions.forEach(opt => opt.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+                
+                // Color options
+                const colorOptions = windowElement.querySelectorAll('.theme-option[data-color]');
+                colorOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const color = this.getAttribute('data-color');
+                        changeAccentColor(color);
+                        
+                        // Update active state
+                        colorOptions.forEach(opt => opt.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+                
+                // Save settings button
+                const saveBtn = windowElement.querySelector('#save-settings');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', function() {
+                        const syntaxHighlighting = windowElement.querySelector('#syntax-highlighting') ? windowElement.querySelector('#syntax-highlighting').checked : false;
+                        const lineNumbers = windowElement.querySelector('#line-numbers') ? windowElement.querySelector('#line-numbers').checked : false;
+                        saveSettings(syntaxHighlighting, lineNumbers);
+                    });
+                }
+            }, 100);
+        }
+        
+        // Change theme
+        function changeTheme(theme) {
+            const root = document.documentElement;
+            switch(theme) {
+                case 'dark':
+                    root.style.setProperty('--primary-bg', '#1e1e1e');
+                    root.style.setProperty('--secondary-bg', '#2d2d2d');
+                    root.style.setProperty('--terminal-bg', '#1e1e1e');
+                    break;
+                case 'light':
+                    root.style.setProperty('--primary-bg', '#ffffff');
+                    root.style.setProperty('--secondary-bg', '#f5f5f5');
+                    root.style.setProperty('--terminal-bg', '#ffffff');
+                    break;
+                case 'oled':
+                    root.style.setProperty('--primary-bg', '#000000');
+                    root.style.setProperty('--secondary-bg', '#111111');
+                    root.style.setProperty('--terminal-bg', '#000000');
+                    break;
+            }
+        }
+        
+        // Change accent color
+        function changeAccentColor(color) {
+            const root = document.documentElement;
+            root.style.setProperty('--accent-color', color);
+        }
+        
+        // Save settings
+        function saveSettings(syntaxHighlighting, lineNumbers) {
+            // In a real implementation, this would save to localStorage
+            alert(`Settings saved!\nSyntax Highlighting: ${syntaxHighlighting}\nLine Numbers: ${lineNumbers || false}`);
+        }
+
+        // Create Learn Window
+        function createLearnWindow() {
+            const content = `
+                <div style="padding: 20px;">
+                    <h2>Learn Python</h2>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 20px;">
+                        <div class="sidebar-item learn-item" data-lesson="basics" style="padding: 15px;">
+                            <h3>📘 Basics</h3>
+                            <p>Variables, data types, operators</p>
+                        </div>
+                        <div class="sidebar-item learn-item" data-lesson="control" style="padding: 15px;">
+                            <h3>🔁 Control Flow</h3>
+                            <p>Conditionals, loops, exceptions</p>
+                        </div>
+                        <div class="sidebar-item learn-item" data-lesson="functions" style="padding: 15px;">
+                            <h3>🧱 Functions</h3>
+                            <p>Defining, calling, parameters</p>
+                        </div>
+                        <div class="sidebar-item learn-item" data-lesson="data" style="padding: 15px;">
+                            <h3>📦 Data Structures</h3>
+                            <p>Lists, tuples, dictionaries, sets</p>
+                        </div>
+                        <div class="sidebar-item learn-item" data-lesson="oop" style="padding: 15px;">
+                            <h3>🏛️ Object Oriented</h3>
+                            <p>Classes, inheritance, polymorphism</p>
+                        </div>
+                        <div class="sidebar-item learn-item" data-lesson="advanced" style="padding: 15px;">
+                            <h3>⚡ Advanced</h3>
+                            <p>Decorators, generators, context managers</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const windowElement = createWindow('Learn Python', content, 700, 500);
+            
+            // Add event listeners to learn items
+            setTimeout(() => {
+                const learnItems = windowElement.querySelectorAll('.learn-item');
+                learnItems.forEach(item => {
+                    item.addEventListener('click', function() {
+                        const lesson = this.getAttribute('data-lesson');
+                        openLesson(lesson);
+                    });
+                });
+            }, 100);
+        }
+        
+        // Open Lesson
+        function openLesson(lesson) {
+            let title = '';
+            let content = '';
+            
+            switch(lesson) {
+                case 'basics':
+                    title = 'Python Basics';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Python Basics</h2>
+                            <p>Learn about variables, data types, and operators in Python.</p>
+                            
+                            <h3>Variables</h3>
+                            <p>In Python, variables are created when you assign a value to them:</p>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+x = 5
+y = "Hello, World!"
+print(x)
+print(y)
+                            </pre>
+                            
+                            <h3>Data Types</h3>
+                            <p>Python has several built-in data types:</p>
+                            <ul>
+                                <li><strong>int</strong> - Integer numbers</li>
+                                <li><strong>float</strong> - Decimal numbers</li>
+                                <li><strong>str</strong> - Text strings</li>
+                                <li><strong>bool</strong> - Boolean values (True/False)</li>
+                            </ul>
+                            
+                            <h3>Operators</h3>
+                            <p>Python supports various operators:</p>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Arithmetic operators
+result = 10 + 5  # Addition
+result = 10 - 5  # Subtraction
+result = 10 * 5  # Multiplication
+result = 10 / 5  # Division
+
+# Comparison operators
+is_equal = (10 == 5)  # False
+is_greater = (10 > 5)  # True
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('basics')">Practice Basics</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'control':
+                    title = 'Control Flow';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Control Flow</h2>
+                            <p>Learn about conditionals, loops, and exception handling.</p>
+                            
+                            <h3>Conditionals</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+age = 18
+
+if age < 13:
+    print("You are a child")
+elif age < 20:
+    print("You are a teenager")
+else:
+    print("You are an adult")
+                            </pre>
+                            
+                            <h3>Loops</h3>
+                            <p>For loops and while loops:</p>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# For loop
+for i in range(5):
+    print(i)
+
+# While loop
+count = 0
+while count < 5:
+    print(count)
+    count += 1
+                            </pre>
+                            
+                            <h3>Exception Handling</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+try:
+    result = 10 / 0
+except ZeroDivisionError:
+    print("Cannot divide by zero!")
+finally:
+    print("This always executes")
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('control')">Practice Control Flow</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'functions':
+                    title = 'Functions';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Functions</h2>
+                            <p>Learn how to define and use functions in Python.</p>
+                            
+                            <h3>Defining Functions</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def greet(name):
+    """Function to greet a person"""
+    return f"Hello, {name}!"
+
+# Calling the function
+message = greet("Alice")
+print(message)
+                            </pre>
+                            
+                            <h3>Function Parameters</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def calculate_area(length, width=1):
+    """Calculate area with optional width parameter"""
+    return length * width
+
+# Positional arguments
+area1 = calculate_area(5, 3)
+
+# Keyword arguments
+area2 = calculate_area(length=5, width=3)
+
+# Default parameter
+area3 = calculate_area(5)
+                            </pre>
+                            
+                            <h3>Lambda Functions</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Lambda function for simple operations
+square = lambda x: x ** 2
+print(square(5))
+
+# Using lambda with map
+numbers = [1, 2, 3, 4, 5]
+squared = list(map(lambda x: x**2, numbers))
+print(squared)
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('functions')">Practice Functions</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'data':
+                    title = 'Data Structures';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Data Structures</h2>
+                            <p>Learn about lists, tuples, dictionaries, and sets.</p>
+                            
+                            <h3>Lists</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Creating and using lists
+fruits = ["apple", "banana", "cherry"]
+fruits.append("orange")
+fruits.remove("banana")
+print(fruits[0])  # Accessing elements
+print(len(fruits))  # Length of list
+                            </pre>
+                            
+                            <h3>Tuples</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Tuples are immutable
+coordinates = (10, 20)
+x, y = coordinates  # Tuple unpacking
+print(f"X: {x}, Y: {y}")
+                            </pre>
+                            
+                            <h3>Dictionaries</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Key-value pairs
+person = {
+    "name": "Alice",
+    "age": 30,
+    "city": "New York"
+}
+print(person["name"])
+person["job"] = "Engineer"  # Adding new key-value pair
+                            </pre>
+                            
+                            <h3>Sets</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Unique collections
+numbers = {1, 2, 3, 4, 5}
+numbers.add(6)
+numbers.discard(2)
+
+# Set operations
+set1 = {1, 2, 3}
+set2 = {3, 4, 5}
+union = set1 | set2  # Union
+intersection = set1 & set2  # Intersection
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('data')">Practice Data Structures</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'oop':
+                    title = 'Object Oriented Programming';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Object Oriented Programming</h2>
+                            <p>Learn about classes, inheritance, and polymorphism.</p>
+                            
+                            <h3>Classes and Objects</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+class Dog:
+    """A simple dog class"""
+    
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+    
+    def bark(self):
+        return f"{self.name} says woof!"
+    
+    def get_info(self):
+        return f"{self.name} is {self.age} years old"
+
+# Creating objects
+my_dog = Dog("Buddy", 3)
+print(my_dog.bark())
+                            </pre>
+                            
+                            <h3>Inheritance</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+class Animal:
+    def __init__(self, name):
+        self.name = name
+    
+    def speak(self):
+        pass
+
+class Cat(Animal):
+    def speak(self):
+        return f"{self.name} says meow!"
+    
+class Dog(Animal):
+    def speak(self):
+        return f"{self.name} says woof!"
+
+# Using inheritance
+cat = Cat("Whiskers")
+dog = Dog("Buddy")
+print(cat.speak())
+print(dog.speak())
+                            </pre>
+                            
+                            <h3>Polymorphism</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def animal_sound(animal):
+    """Function that works with any animal"""
+    print(animal.speak())
+
+# Polymorphism in action
+animals = [Cat("Whiskers"), Dog("Buddy")]
+for animal in animals:
+    animal_sound(animal)
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('oop')">Practice OOP</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'advanced':
+                    title = 'Advanced Python';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Advanced Python</h2>
+                            <p>Learn about decorators, generators, and context managers.</p>
+                            
+                            <h3>Decorators</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def my_decorator(func):
+    """A simple decorator"""
+    def wrapper(*args, **kwargs):
+        print("Something before the function")
+        result = func(*args, **kwargs)
+        print("Something after the function")
+        return result
+    return wrapper
+
+@my_decorator
+def say_hello(name):
+    return f"Hello, {name}!"
+
+print(say_hello("Alice"))
+                            </pre>
+                            
+                            <h3>Generators</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def fibonacci_generator(n):
+    """Generator for Fibonacci sequence"""
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+# Using the generator
+fib = fibonacci_generator(10)
+for num in fib:
+    print(num)
+
+# Generator expression
+squares = (x**2 for x in range(10))
+print(list(squares))
+                            </pre>
+                            
+                            <h3>Context Managers</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Using with statement (context manager)
+with open("example.txt", "w") as file:
+    file.write("Hello, World!")
+
+# Creating a custom context manager
+class MyContextManager:
+    def __enter__(self):
+        print("Entering context")
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        print("Exiting context")
+
+with MyContextManager() as cm:
+    print("Inside context")
+                            </pre>
+                            
+                            <button class="editor-btn" onclick="createPracticeWindow('advanced')">Practice Advanced Concepts</button>
+                        </div>
+                    `;
+                    break;
+                    
+                default:
+                    title = 'Python Lesson';
+                    content = `<div style="padding: 20px;"><h2>Lesson not found</h2></div>`;
+            }
+            
+            createWindow(title, content, 800, 600);
+        }
+        
+        // Create Practice Window
+        function createPracticeWindow(lesson = 'basics') {
+            let title = '';
+            let content = '';
+            
+            switch(lesson) {
+                case 'basics':
+                    title = 'Practice Basics';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Variable Operations</h2>
+                            <p>Create a program that calculates the area of a rectangle and displays the result.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Define length and width variables</div>
+                                <div class="terminal-line"># 2. Calculate area = length * width</div>
+                                <div class="terminal-line"># 3. Print the result</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('basics')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'control':
+                    title = 'Practice Control Flow';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Number Classifier</h2>
+                            <p>Write a program that classifies numbers as positive, negative, or zero.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Ask user for a number</div>
+                                <div class="terminal-line"># 2. Use if/elif/else to classify</div>
+                                <div class="terminal-line"># 3. Print appropriate message</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('control')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'functions':
+                    title = 'Practice Functions';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Temperature Converter</h2>
+                            <p>Create functions to convert between Celsius and Fahrenheit.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Function celsius_to_fahrenheit(c)</div>
+                                <div class="terminal-line"># 2. Function fahrenheit_to_celsius(f)</div>
+                                <div class="terminal-line"># 3. Test both functions</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('functions')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'data':
+                    title = 'Practice Data Structures';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Student Grade Manager</h2>
+                            <p>Use lists and dictionaries to manage student grades.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Create a dictionary of students and grades</div>
+                                <div class="terminal-line"># 2. Add new grades to lists</div>
+                                <div class="terminal-line"># 3. Calculate average grades</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('data')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'oop':
+                    title = 'Practice OOP';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Shape Classes</h2>
+                            <p>Create classes for different shapes with area calculation methods.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Base Shape class</div>
+                                <div class="terminal-line"># 2. Circle and Rectangle subclasses</div>
+                                <div class="terminal-line"># 3. Area calculation methods</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('oop')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'advanced':
+                    title = 'Practice Advanced Concepts';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Challenge: Custom Decorator</h2>
+                            <p>Create a decorator that logs function execution time.</p>
+                            <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                <div class="terminal-line"># Requirements:</div>
+                                <div class="terminal-line"># 1. Create timing_decorator</div>
+                                <div class="terminal-line"># 2. Apply to a slow function</div>
+                                <div class="terminal-line"># 3. Display execution time</div>
+                            </div>
+                            <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                            <button class="editor-btn" onclick="showSolution('advanced')">Show Solution</button>
+                        </div>
+                    `;
+                    break;
+                    
+                default:
+                    title = 'Practice Python';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h2>Practice Python</h2>
+                            <div style="margin-top: 20px;">
+                                <h3>Challenge: Fibonacci Sequence</h3>
+                                <p>Write a function that returns the nth number in the Fibonacci sequence.</p>
+                                <div class="terminal" style="height: 150px; margin: 10px 0;">
+                                    <div class="terminal-line"># Test your function here:</div>
+                                    <div class="terminal-line"># fibonacci(10) should return 55</div>
+                                </div>
+                                <button class="editor-btn" onclick="createEditorWindow()">Open Editor</button>
+                                <button class="editor-btn" onclick="showSolution('default')">Show Solution</button>
+                            </div>
+                        </div>
+                    `;
+            }
+            
+            createWindow(title, content, 600, 400);
+        }
+        
+        // Show Solution
+        function showSolution(lesson) {
+            let title = '';
+            let content = '';
+            
+            switch(lesson) {
+                case 'basics':
+                    title = 'Solution: Variable Operations';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Define variables
+length = 10
+width = 5
+
+# Calculate area
+area = length * width
+
+# Display result
+print(f"The area of a rectangle with length {length} and width {width} is {area}")
+                            </pre>
+                            <p>This solution demonstrates variable assignment, arithmetic operations, and formatted string output.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'control':
+                    title = 'Solution: Number Classifier';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Get number from user
+number = float(input("Enter a number: "))
+
+# Classify the number
+if number > 0:
+    print(f"{number} is positive")
+elif number < 0:
+    print(f"{number} is negative")
+else:
+    print(f"{number} is zero")
+                            </pre>
+                            <p>This solution shows how to use conditionals to classify input values.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'functions':
+                    title = 'Solution: Temperature Converter';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def celsius_to_fahrenheit(celsius):
+    """Convert Celsius to Fahrenheit"""
+    return (celsius * 9/5) + 32
+
+def fahrenheit_to_celsius(fahrenheit):
+    """Convert Fahrenheit to Celsius"""
+    return (fahrenheit - 32) * 5/9
+
+# Test the functions
+temp_c = 25
+temp_f = 77
+
+print(f"{temp_c}°C is {celsius_to_fahrenheit(temp_c)}°F")
+print(f"{temp_f}°F is {fahrenheit_to_celsius(temp_f)}°C")
+                            </pre>
+                            <p>This solution demonstrates function definition, parameters, and return values.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'data':
+                    title = 'Solution: Student Grade Manager';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+# Student grades dictionary
+students = {
+    "Alice": [85, 92, 78],
+    "Bob": [90, 88, 95],
+    "Charlie": [70, 82, 75]
+}
+
+# Function to add grade
+def add_grade(name, grade):
+    if name in students:
+        students[name].append(grade)
+    else:
+        students[name] = [grade]
+
+# Function to calculate average
+def calculate_average(grades):
+    return sum(grades) / len(grades)
+
+# Add a new grade and calculate averages
+add_grade("Alice", 95)
+
+for student, grades in students.items():
+    average = calculate_average(grades)
+    print(f"{student}: {grades} (Average: {average:.2f})")
+                            </pre>
+                            <p>This solution shows how to work with dictionaries containing lists and perform calculations.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'oop':
+                    title = 'Solution: Shape Classes';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+import math
+
+class Shape:
+    def area(self):
+        pass
+
+class Circle(Shape):
+    def __init__(self, radius):
+        self.radius = radius
+    
+    def area(self):
+        return math.pi * self.radius ** 2
+
+class Rectangle(Shape):
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+    
+    def area(self):
+        return self.width * self.height
+
+# Test the classes
+circle = Circle(5)
+rectangle = Rectangle(4, 6)
+
+print(f"Circle area: {circle.area():.2f}")
+print(f"Rectangle area: {rectangle.area()}")
+                            </pre>
+                            <p>This solution demonstrates inheritance, method overriding, and polymorphism.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'advanced':
+                    title = 'Solution: Custom Decorator';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+import time
+from functools import wraps
+
+def timing_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"{func.__name__} executed in {end_time - start_time:.4f} seconds")
+        return result
+    return wrapper
+
+@timing_decorator
+def slow_function():
+    time.sleep(1)
+    return "Function completed"
+
+# Test the decorator
+result = slow_function()
+print(result)
+                            </pre>
+                            <p>This solution shows how to create and use decorators to add functionality to existing functions.</p>
+                        </div>
+                    `;
+                    break;
+                    
+                default:
+                    title = 'Solution: Fibonacci Sequence';
+                    content = `
+                        <div style="padding: 20px;">
+                            <h3>Solution Code:</h3>
+                            <pre style="background: #1e1e1e; padding: 15px; border-radius: 5px;">
+def fibonacci(n):
+    """Calculate the nth Fibonacci number"""
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+# Test the function
+print(f"Fibonacci sequence:")
+for i in range(10):
+    print(f"fibonacci({i}) = {fibonacci(i)}")
+                            </pre>
+                            <p>This solution demonstrates recursion and function implementation.</p>
+                        </div>
+                    `;
+            }
+            
+            createWindow(title, content, 700, 500);
+        }
+        
+        // Scroll to Bottom Function
+        function scrollToBottom(element) {
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        // Scroll to Top Function
+        function scrollToTop(element) {
+            element.scrollTop = 0;
+        }
+        
+        // Smooth Scroll Function
+        function smoothScrollTo(element, targetPosition, duration = 300) {
+            const startPosition = element.scrollTop;
+            const distance = targetPosition - startPosition;
+            let startTime = null;
+            
+            function animation(currentTime) {
+                if (startTime === null) startTime = currentTime;
+                const timeElapsed = currentTime - startTime;
+                const progress = Math.min(timeElapsed / duration, 1);
+                
+                // Ease-out function
+                const ease = 1 - Math.pow(1 - progress, 3);
+                element.scrollTop = startPosition + distance * ease;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animation);
+                }
+            }
+            
+            requestAnimationFrame(animation);
+        }
+        
+        // Add Scroll Functionality to Element
+        function addScrollFunctionality(element) {
+            // Add mouse wheel scrolling
+            element.addEventListener('wheel', function(e) {
+                // Prevent default scrolling behavior
+                e.preventDefault();
+                
+                // Adjust scroll speed
+                const scrollSpeed = 30;
+                this.scrollTop += e.deltaY > 0 ? scrollSpeed : -scrollSpeed;
+            });
+            
+            // Add touch scrolling for mobile devices
+            let touchStartY = 0;
+            element.addEventListener('touchstart', function(e) {
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            element.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                const touchY = e.touches[0].clientY;
+                const diff = touchStartY - touchY;
+                this.scrollTop += diff;
+                touchStartY = touchY;
+            });
+            
+            // Add keyboard scrolling (arrow keys, page up/down, home/end)
+            element.setAttribute('tabindex', '0'); // Make element focusable
+            element.addEventListener('keydown', function(e) {
+                const lineHeight = 20;
+                const pageHeight = this.clientHeight;
+                
+                switch(e.key) {
+                    case 'ArrowUp':
+                        this.scrollTop -= lineHeight;
+                        e.preventDefault();
+                        break;
+                    case 'ArrowDown':
+                        this.scrollTop += lineHeight;
+                        e.preventDefault();
+                        break;
+                    case 'PageUp':
+                        this.scrollTop -= pageHeight;
+                        e.preventDefault();
+                        break;
+                    case 'PageDown':
+                        this.scrollTop += pageHeight;
+                        e.preventDefault();
+                        break;
+                    case 'Home':
+                        this.scrollTop = 0;
+                        e.preventDefault();
+                        break;
+                    case 'End':
+                        this.scrollTop = this.scrollHeight;
+                        e.preventDefault();
+                        break;
+                }
+            });
+        }
+        
+        // Auto-scroll Function for Dynamic Content
+        function autoScrollToBottom(element) {
+            // Check if user is near the bottom before auto-scrolling
+            const threshold = 20; // pixels from bottom
+            const isNearBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - threshold;
+            
+            if (isNearBottom) {
+                // Scroll to bottom after a short delay to ensure content is rendered
+                setTimeout(() => {
+                    element.scrollTop = element.scrollHeight;
+                }, 10);
+            }
+        }
+        
+        // Enhanced Scroll Function with Animation
+        function enhancedScrollTo(element, position, options = {}) {
+            const {
+                duration = 500,
+                smooth = true,
+                animate = true
+            } = options;
+            
+            if (!smooth) {
+                element.scrollTop = position;
+                return;
+            }
+            
+            if (animate) {
+                smoothScrollTo(element, position, duration);
+            } else {
+                element.scrollTop = position;
+            }
+        }
+        
+        // Public scroll function that can be called from anywhere
+        function scrollElement(element, direction, amount = 50) {
+            if (!element) return;
+            
+            switch(direction) {
+                case 'up':
+                    element.scrollTop -= amount;
+                    break;
+                case 'down':
+                    element.scrollTop += amount;
+                    break;
+                case 'top':
+                    element.scrollTop = 0;
+                    break;
+                case 'bottom':
+                    element.scrollTop = element.scrollHeight;
+                    break;
+                default:
+                    // If direction is a number, scroll to that position
+                    if (typeof direction === 'number') {
+                        element.scrollTop = direction;
+                    }
+            }
+        }
+        
+        // Scroll to element within a container
+        function scrollToElement(container, targetElement) {
+            if (!container || !targetElement) return;
+            
+            const containerRect = container.getBoundingClientRect();
+            const targetRect = targetElement.getBoundingClientRect();
+            
+            const offset = targetRect.top - containerRect.top + container.scrollTop;
+            
+            enhancedScrollTo(container, offset, { duration: 300 });
+        }
+        
+        // Toggle fullscreen mode for a window
+        function toggleFullscreen(windowElement) {
+            // Check if we're already in fullscreen mode
+            if (windowElement.classList.contains('fullscreen-mode')) {
+                // Exit fullscreen mode
+                exitFullscreen(windowElement);
+            } else {
+                // Enter fullscreen mode
+                enterFullscreen(windowElement);
+            }
+        }
+        
+        // NEW: Toggle page-wide fullscreen mode
+        function togglePageFullscreen() {
+            const body = document.body;
+            if (body.classList.contains('page-fullscreen')) {
+                exitPageFullscreen();
+            } else {
+                enterPageFullscreen();
+            }
+        }
+        
+        // NEW: Enter page-wide fullscreen mode
+        function enterPageFullscreen() {
+            const body = document.body;
+            body.classList.add('page-fullscreen');
+            
+            // Hide taskbar
+            const taskbar = document.querySelector('.taskbar');
+            if (taskbar) {
+                taskbar.style.display = 'none';
+            }
+            
+            // Add ESC key listener to exit fullscreen
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    exitPageFullscreen();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+        
+        // NEW: Exit page-wide fullscreen mode
+        function exitPageFullscreen() {
+            const body = document.body;
+            body.classList.remove('page-fullscreen');
+            
+            // Show taskbar
+            const taskbar = document.querySelector('.taskbar');
+            if (taskbar) {
+                taskbar.style.display = 'flex';
+            }
+        }
+        
+        // Enter fullscreen mode for a window (YouTube-style)
+        function enterFullscreen(windowElement) {
+            // Store original properties
+            windowElement.setAttribute('data-original-width', windowElement.style.width);
+            windowElement.setAttribute('data-original-height', windowElement.style.height);
+            windowElement.setAttribute('data-original-left', windowElement.style.left);
+            windowElement.setAttribute('data-original-top', windowElement.style.top);
+            windowElement.setAttribute('data-original-z-index', windowElement.style.zIndex || 'auto');
+            windowElement.setAttribute('data-original-position', windowElement.style.position || 'absolute');
+            
+            // Apply fullscreen styles
+            windowElement.classList.add('fullscreen-mode');
+            windowElement.style.position = 'fixed';
+            windowElement.style.width = '100vw';
+            windowElement.style.height = '100vh';
+            windowElement.style.left = '0';
+            windowElement.style.top = '0';
+            windowElement.style.zIndex = '999999';
+            windowElement.style.borderRadius = '0';
+            windowElement.style.margin = '0';
+            
+            // Hide taskbar but keep it in the DOM
+            const taskbar = document.querySelector('.taskbar');
+            if (taskbar) {
+                taskbar.style.display = 'none';
+            }
+            
+            // Add fullscreen overlay to capture clicks outside the window
+            if (!document.getElementById('fullscreen-overlay')) {
+                const overlay = document.createElement('div');
+                overlay.id = 'fullscreen-overlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100vw';
+                overlay.style.height = '100vh';
+                overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                overlay.style.zIndex = '999998';
+                overlay.style.cursor = 'pointer';
+                
+                // Clicking overlay exits fullscreen
+                overlay.addEventListener('click', () => {
+                    exitFullscreen(windowElement);
+                });
+                
+                document.body.appendChild(overlay);
+            }
+            
+            // Add ESC key listener to exit fullscreen
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    exitFullscreen(windowElement);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+        
+        // Exit fullscreen mode for a window (YouTube-style)
+        function exitFullscreen(windowElement) {
+            // Remove fullscreen overlay
+            const overlay = document.getElementById('fullscreen-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+            
+            // Restore original properties
+            windowElement.style.position = windowElement.getAttribute('data-original-position') || 'absolute';
+            windowElement.style.width = windowElement.getAttribute('data-original-width');
+            windowElement.style.height = windowElement.getAttribute('data-original-height');
+            windowElement.style.left = windowElement.getAttribute('data-original-left');
+            windowElement.style.top = windowElement.getAttribute('data-original-top');
+            windowElement.style.zIndex = windowElement.getAttribute('data-original-z-index') || 'auto';
+            windowElement.style.borderRadius = '10px';
+            windowElement.style.margin = '';
+            
+            // Remove fullscreen class
+            windowElement.classList.remove('fullscreen-mode');
+            
+            // Show taskbar
+            const taskbar = document.querySelector('.taskbar');
+            if (taskbar) {
+                taskbar.style.display = 'flex';
+            }
+        }
+        
+        // Full page scrolling function
+        function enableFullPageScrolling() {
+            // Enable scrolling on the entire page
+            document.body.style.overflow = 'auto';
+            
+            // Make desktop height flexible
+            const desktop = document.getElementById('desktop');
+            if (desktop) {
+                desktop.style.minHeight = 'calc(100vh - 40px)';
+                desktop.style.height = 'auto';
+                desktop.style.overflow = 'visible';
+            }
+            
+            // Add scroll to top button for better UX
+            createScrollToTopButton();
+        }
+        
+        // Create scroll to top button
+        function createScrollToTopButton() {
+            // Check if button already exists
+            if (document.getElementById('scroll-to-top')) return;
+            
+            const button = document.createElement('button');
+            button.id = 'scroll-to-top';
+            button.innerHTML = '↑';
+            button.style.position = 'fixed';
+            button.style.bottom = '60px';
+            button.style.right = '20px';
+            button.style.width = '40px';
+            button.style.height = '40px';
+            button.style.borderRadius = '50%';
+            button.style.background = 'var(--accent-color)';
+            button.style.color = 'white';
+            button.style.border = 'none';
+            button.style.cursor = 'pointer';
+            button.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.3)';
+            button.style.zIndex = '9999';
+            button.style.display = 'none';
+            button.style.fontSize = '20px';
+            button.style.fontWeight = 'bold';
+            
+            button.addEventListener('click', () => {
+                scrollToTop(document.body);
+            });
+            
+            document.body.appendChild(button);
+            
+            // Show/hide button based on scroll position
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > 300) {
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        }
+        
+        // Initialize full page scrolling
+        document.addEventListener('DOMContentLoaded', () => {
+            enableFullPageScrolling();
+        });
+        
+        // Mobile-specific scroll enhancement
+        function enhanceMobileScrolling() {
+            // Detect if we're on a mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // Add touch-action styles to scrollable elements for better mobile scrolling
+                const scrollableElements = document.querySelectorAll('.window-content, .terminal, .editor-textarea, .file-content');
+                scrollableElements.forEach(element => {
+                    element.style.touchAction = 'pan-y';
+                    element.style.webkitOverflowScrolling = 'touch';
+                });
+                
+                // ONLY add touch handling for scrollable elements to prevent scroll bounce
+                scrollableElements.forEach(element => {
+                    let startY = 0;
+                    
+                    element.addEventListener('touchstart', function(e) {
+                        startY = e.touches[0].pageY;
+                    }, { passive: true });
+                    
+                    element.addEventListener('touchmove', function(e) {
+                        // Allow normal scrolling behavior within scrollable elements
+                        const currentY = e.touches[0].pageY;
+                        const scrollTop = this.scrollTop;
+                        const scrollHeight = this.scrollHeight;
+                        const clientHeight = this.clientHeight;
+                        
+                        // Check if we're at the top or bottom of the scrollable area
+                        const isAtTop = scrollTop === 0 && currentY > startY;
+                        const isAtBottom = scrollTop + clientHeight >= scrollHeight && currentY < startY;
+                        
+                        // ONLY prevent default if we're trying to scroll beyond boundaries
+                        // This prevents the "rubber band" effect without breaking other touch functionality
+                        if ((isAtTop && currentY > startY) || (isAtBottom && currentY < startY)) {
+                            e.preventDefault();
+                        }
+                    }, { passive: false });
+                });
+                
+                // Remove the global touchmove listener that was breaking button functionality
+                // All UI elements should work normally now
+            }
+        }
+        
+        // Call mobile scroll enhancement on DOM load
+        document.addEventListener('DOMContentLoaded', enhanceMobileScrolling);
+        
+        // Initialize File System
+        function initializeFileSystem() {
+            // In a real implementation, this would connect to actual file storage
+            PyOS.fileSystem = {
+                projects: [
+                    { name: 'hello_world.py', type: 'file', content: 'print("Hello, World!")' },
+                    { name: 'fibonacci.py', type: 'file', content: '# Fibonacci implementation\n\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(10))' },
+                    { name: 'data_analysis.py', type: 'file', content: '# Data analysis example\nimport numpy as np\n\ndata = np.array([1, 2, 3, 4, 5])\nprint(f"Mean: {np.mean(data)}")' }
+                ],
+                currentPath: '/',
+                files: {
+                    'hello_world.py': 'print("Hello, World!")',
+                    'fibonacci.py': '# Fibonacci implementation\n\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(10))',
+                    'data_analysis.py': '# Data analysis example\nimport numpy as np\n\ndata = np.array([1, 2, 3, 4, 5])\nprint(f"Mean: {np.mean(data)}")'
+                }
+            };
+        }
+    </script>
+</body>
+</html>
